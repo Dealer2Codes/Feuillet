@@ -1,0 +1,69 @@
+# Construit l'exécutable et l'installateur Windows, puis les publie dans une
+# « Release » GitHub, quand une étiquette de version (ex. v0.1.0) est envoyée.
+#
+#   git tag v0.1.0
+#   git push origin v0.1.0
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write  # nécessaire pour créer la Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Vérifier que l'étiquette correspond à la version du projet
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          if ($tag -ne $version) { throw "Étiquette v$tag différente de la version $version de pyproject.toml" }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.lock
+          python -m pip install -e . --no-deps
+          python -m pip install "pyinstaller>=6.5,<7"
+
+      - name: Lancer les tests
+        run: python -m pytest -q
+
+      - name: Construire l'exécutable
+        run: pyinstaller installer\feuillet.spec --noconfirm --distpath dist --workpath build
+
+      - name: Construire l'installateur
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup --yes --no-progress
+            $env:PATH += ";${env:ProgramFiles(x86)}\Inno Setup 6"
+          }
+          ISCC.exe /DAppVersion=$env:VERSION installer\feuillet.iss
+
+      - name: Préparer les fichiers de la Release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item "dist\installer\Feuillet-$env:VERSION-setup.exe" release\
+          Compress-Archive -Path dist\Feuillet\* -DestinationPath "release\Feuillet-$env:VERSION-portable-win64.zip"
+          Get-ChildItem release | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Out-File -Encoding ascii release\SHA256SUMS.txt
+
+      - name: Publier la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Feuillet ${{ env.VERSION }}
+          draft: true  # relue et publiée à la main depuis GitHub
+          files: release/*

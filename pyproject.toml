@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=77"]  # « license » en expression SPDX et « license-files »
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "feuillet"
+version = "0.1.0"
+description = "Numérisation de documents et filigranes PDF/Word, hors ligne (Windows 10/11)"
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "THIRD_PARTY_LICENSES.md"]
+authors = [{ name = "Les contributeurs de Feuillet" }]
+keywords = ["scanner", "pdf", "ocr", "filigrane", "watermark", "docx"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "Natural Language :: French",
+    "Natural Language :: English",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Capture :: Scanners",
+    "Topic :: Office/Business",
+]
+
+# Versions de Python testées. Une version plus récente est refusée à
+# l'installation avec un message clair, au lieu d'une installation partielle
+# (bibliothèques compilées pas encore publiées pour cette version).
+requires-python = ">=3.11,<3.14"
+
+# Bornes hautes : on accepte les correctifs, pas les versions majeures non
+# testées. Les versions exactes utilisées sont figées dans requirements.lock.
+dependencies = [
+    "numpy>=1.26,<3",
+    "opencv-python-headless>=4.10,<6",
+    "Pillow>=10.4,<14",
+    # PyMuPDF 2.x impose onnxruntime et des modules d'IA (~180 Mo) inutiles ici.
+    "PyMuPDF>=1.26,<2",
+    "python-docx>=1.1,<2",
+    "lxml>=5.0,<7",
+    # Uniquement QtCore, QtGui et QtWidgets : le paquet « PySide6 » complet
+    # ajouterait WebEngine et les modules annexes (~180 Mo).
+    "PySide6-Essentials>=6.6,<7",
+    # Module Conversion
+    "pdf2docx>=0.5.13,<0.6",
+    "python-pptx>=1.0,<2",
+    "openpyxl>=3.1,<4",
+    "Markdown>=3.5,<4",
+    # Accès COM à WIA (scanners) et à Microsoft Office (conversions).
+    "pywin32>=306; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+# Exécutable et installateur (pas utilisés pour l'instant).
+build = ["pyinstaller>=6.5,<7"]
+# TWAIN via pytwain : licence GPL v2 seule, incompatible avec la diffusion
+# de Feuillet sous AGPL v3. Utilisable en développement, à ne pas livrer.
+# Sans ce paquet, l'application utilise WIA et l'indique à l'utilisateur.
+twain = ["pytwain>=2.2,<3; sys_platform == 'win32'"]
+
+[project.scripts]
+feuillet = "feuillet.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+feuillet = ["locales/*.json", "resources/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"

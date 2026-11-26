@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Construction
+build/
+dist/
+vendor/tesseract/
+
+# Fichiers personnels ou de travail : jamais publiés
+_to_delete/
+*.log
+/*.pdf
+/*.docx
+/*.doc
+/*.xlsx
+/*.png
+/*.jpg
+/*.jpeg
